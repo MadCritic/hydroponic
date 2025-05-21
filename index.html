@@ -604,10 +604,17 @@
             }
             if(sendFeedbackButton) {
                 sendFeedbackButton.addEventListener('click', () => {
-                    if (feedbackTextArea.value.trim()) {
-                        alert('Tak for din feedback!');
-                        feedbackTextArea.value = '';
-                        feedbackModal.style.display = 'none';
+                    const feedbackText = feedbackTextArea.value.trim();
+                    if (feedbackText) {
+                        const phoneNumber = '53620051';
+                        const messageBody = encodeURIComponent(feedbackText);
+                        // Attempt to open SMS app
+                        window.location.href = `sms:${phoneNumber}?body=${messageBody}`;
+                        // Note: We don't hide the modal or clear the text here,
+                        // as the user might cancel sending from their SMS app.
+                        // You could add a small delay and then hide, or let the user close it manually.
+                        // For simplicity, we'll leave it open.
+                        // alert('Forsøger at åbne SMS-app...'); // Optional: for debugging
                     } else {
                         alert('Skriv venligst din feedback før afsendelse.');
                     }
@@ -923,4 +930,3 @@
     </script>
 </body>
 </html>
-
