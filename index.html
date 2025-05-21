@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hydroponisk Drivhus App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        :root {
+            /* Base farver - kan justeres hvis et fast tema ønskes */
+            --text-color: #1c1c1e;
+            --bg-color: #f0f0f5;
+            --card-bg-color: white;
+            --border-color: #d1d5db;
+            --primary-accent-color: #007aff;
+            --header-bg-color: rgba(249, 250, 251, 0.95);
+            --toggle-off-bg: #e5e5ea;
+            --toggle-on-bg: #34c759;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overscroll-behavior-y: contain;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 16px; /* Fast basis skriftstørrelse */
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--header-bg-color);
+            -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+            display: flex; justify-content: space-around;
+            padding-top: 8px;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+            z-index: 1000;
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #6b7280;
+            cursor: pointer; padding: 2px 4px; font-size: 0.65rem;
+            flex-grow: 1; text-align: center; -webkit-tap-highlight-color: transparent;
+            transition: transform 0.1s ease-out;
+        }
+        .nav-item:active { transform: scale(0.95); }
+        .nav-item.active { color: var(--primary-accent-color); font-weight: 500; }
+        .nav-item i { font-size: 1.6rem; margin-bottom: 1px; }
+        .nav-item-label { font-size: 0.6rem; margin-top: 1px; display: block; } /* Altid synlig label nu */
+
+
+        .toggle-checkbox:checked + .toggle-label { background-color: var(--toggle-on-bg); }
+        .toggle-checkbox:checked + .toggle-label::after { transform: translateX(calc(100% - 2px)); }
+        .toggle-label {
+            width: 51px; height: 31px; border-radius: 9999px;
+            background-color: var(--toggle-off-bg);
+            position: relative; cursor: pointer; transition: background-color 0.2s ease-in-out;
+            display: inline-block; border: 0.5px solid rgba(0,0,0,0.04);
+        }
+        .toggle-label::after {
+            content: ''; position: absolute; top: 2px; left: 2px;
+            width: 27px; height: 27px; border-radius: 9999px;
+            background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .modal {
+            display: none; align-items: center; justify-content: center;
+            position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.4);
+            -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: var(--card-bg-color); color: var(--text-color);
+            padding: 20px; width: 90%; max-width: 300px; border-radius: 14px;
+            text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+        }
+        .modal-content input[type="date"], .modal-content input[type="text"], .modal-content textarea {
+            border: 1px solid var(--border-color); padding: 10px; border-radius: 8px;
+            -webkit-appearance: none; appearance: none;
+            background-color: var(--bg-color); color: var(--text-color); width: 100%;
+        }
+        .modal-content button {
+            font-weight: 600; padding: 10px 15px; border-radius: 8px;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+         .modal-content button:active { transform: scale(0.98); }
+
+        #main-content { padding-bottom: 100px; }
+        .app-header {
+            background-color: var(--header-bg-color); color: var(--text-color);
+            padding: 12px 16px; padding-top: calc(12px + env(safe-area-inset-top));
+            border-bottom: 1px solid var(--border-color);
+            text-align: center; position: sticky; top: 0; z-index: 999;
+        }
+        .app-header h1 { font-size: 1.1rem; font-weight: 600; }
+        .card {
+            background-color: var(--card-bg-color); color: var(--text-color);
+            border-radius: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 6px 12px rgba(0,0,0,0.05);
+        }
+        .kids-card {
+            background-color: var(--card-bg-color); color: var(--text-color);
+            border-radius: 12px; padding: 16px; margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .kids-card h2 { font-size: 1.4rem; font-weight: 700; color: #3b82f6; margin-bottom: 8px; }
+        .kids-card h3 { font-size: 1.1rem; font-weight: 600; color: #10b981; margin-top: 12px; margin-bottom: 6px; }
+        .kids-card p { font-size: 0.95rem; line-height: 1.6; }
+        .kids-card img { width: 100%; max-width: 250px; height: auto; border-radius: 8px; margin: 10px auto; display: block; border: 1px solid var(--border-color); }
+        .child-lock-bar {
+            background-color: var(--card-bg-color); color: var(--text-color);
+            padding: 12px 16px; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; /* Sticky under app-header */
+            top: calc(env(safe-area-inset-top) + 49px); /* Højde af app-header */
+            z-index: 998;
+        }
+        .child-lock-bar span { font-size: 0.9rem; font-weight: 500; }
+
+        #critical-alert-banner {
+            background-color: #ef4444; /* red-500 */
+            color: white; padding: 12px; text-align: center; font-weight: 500;
+            display: none; position: sticky;
+            top: 0; /* Sticky lige under toppen, da settings-bar er væk */
+            z-index: 1000; /* Over app-header */
+        }
+
+        .guide-modal-content { padding: 0; }
+        .guide-slide { text-align: center; }
+        .guide-slide img { width: 80%; max-height: 200px; object-fit: contain; margin: 10px auto; border-radius: 8px; }
+        .guide-slide h3 { font-size: 1.2rem; font-weight: 600; margin-bottom: 8px; color: var(--primary-accent-color); }
+        .guide-slide p { font-size: 0.9rem; margin-bottom: 15px; padding: 0 10px; }
+        .guide-dots { text-align: center; margin-top: 10px; }
+        .guide-dot { height: 8px; width: 8px; margin: 0 3px; background-color: #bbb; border-radius: 50%; display: inline-block; }
+        .guide-dot.active { background-color: var(--primary-accent-color); }
+
+        .log-entry, .post-item { border-bottom: 1px solid var(--border-color); padding: 8px 0; }
+        .log-entry:last-child, .post-item:last-child { border-bottom: none; }
+        .log-meta, .post-meta { font-size: 0.75rem; color: #6b7280; }
+
+        /* Simple SVG Graph Styling */
+        .chart-container {
+            width: 100%;
+            height: 150px; /* Justerbar højde for grafen */
+            background-color: #f9fafb; /* Lys baggrund for grafen */
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .chart-container svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .chart-line {
+            fill: none;
+            stroke-width: 2;
+        }
+        .ph-line { stroke: #3b82f6; /* blue-500 */ }
+        .temp-line { stroke: #f97316; /* orange-500 */ }
+        .axis-line { stroke: #9ca3af; stroke-width: 1; } /* gray-400 */
+        .axis-text { font-size: 9px; fill: #6b7280; } /* gray-500 */
+
+        /* FAQ Styling */
+        .faq-item strong {
+            display: block;
+            color: var(--primary-accent-color);
+            margin-bottom: 4px;
+        }
+        .faq-item p {
+            color: var(--text-color);
+        }
+
+    </style>
+</head>
+<body>
+    <div id="critical-alert-banner">
+        <i class="fas fa-exclamation-triangle mr-2"></i><span id="critical-alert-message"></span>
+    </div>
+
+    <main id="main-content">
+        <div id="tab-home" class="tab-content active">
+            <header class="app-header">
+                <h1>Velkommen til Hydroponic x Sol Over Brabrand</h1>
+            </header>
+            <div class="p-4">
+                <div class="card p-4 mb-4">
+                    <p class="text-sm text-center">Værdierne er blot til information, da hydroponicsystemet er selvregulerende. Hvis det alligevel der er noget helt galt, så klik på fanen "Hjælp" og kontakt os.</p>
+                </div>
+                <div class="card p-4 mb-4">
+                    <h3 class="font-semibold text-lg mb-1" id="status-title">Dagens Status</h3>
+                    <p class="text-sm" id="status-message">Alt ser fint ud i dag! <i class="fas fa-sun text-yellow-500"></i></p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="card p-5">
+                        <h2 class="text-lg font-semibold text-green-600 mb-1">pH Værdi</h2>
+                        <p id="ph-value" class="text-3xl font-bold">--</p>
+                        <p class="text-xs text-gray-500">pH</p>
+                    </div>
+                    <div class="card p-5">
+                        <h2 class="text-lg font-semibold text-blue-600 mb-1">Luftfugtighed</h2>
+                        <p id="humidity-value" class="text-3xl font-bold">--</p>
+                        <p class="text-xs text-gray-500">%</p>
+                    </div>
+                    <div class="card p-5">
+                        <h2 class="text-lg font-semibold text-orange-500 mb-1">Temperatur</h2>
+                        <p id="temperature-value" class="text-3xl font-bold">--</p>
+                        <p class="text-xs text-gray-500">°C</p>
+                    </div>
+                    <div class="card p-5">
+                        <h2 class="text-lg font-semibold text-yellow-500 mb-1">Lysniveau</h2>
+                        <p id="light-level-value" class="text-3xl font-bold">--</p>
+                        <p class="text-xs text-gray-500">lux</p>
+                    </div>
+                </div>
+                <p class="text-center text-gray-500 mt-4 text-xs">Opdateres hvert 5. sekund</p>
+            </div>
+        </div>
+
+        <div id="tab-data" class="tab-content">
+            <header class="app-header"><h1>Data Oversigt</h1></header>
+            <div class="p-4 space-y-3">
+                <div class="card p-4">
+                    <h3 class="font-semibold text-lg mb-2">Sensor Værdier</h3>
+                    <div class="space-y-2">
+                        <div>
+                            <div class="flex justify-between items-center"><span class="text-base font-medium">pH Værdi</span><span id="data-ph-value" class="text-base font-bold">--</span></div>
+                            <p id="data-ph-status" class="text-xs mt-1">Kontrollerer...</p>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center"><span class="text-base font-medium">Luftfugtighed</span><span id="data-humidity-value" class="text-base font-bold">-- %</span></div>
+                            <p id="data-humidity-status" class="text-xs mt-1">Kontrollerer...</p>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center"><span class="text-base font-medium">Temperatur</span><span id="data-temperature-value" class="text-base font-bold">-- °C</span></div>
+                            <p id="data-temperature-status" class="text-xs mt-1">Kontrollerer...</p>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center"><span class="text-base font-medium">Lysniveau</span><span id="data-light-value" class="text-base font-bold">-- lux</span></div>
+                            <p id="data-light-status" class="text-xs mt-1">Kontrollerer...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <h3 class="font-semibold text-lg mb-2">pH Værdi Graf</h3>
+                    <div class="chart-container">
+                        <svg id="ph-chart-svg" viewBox="0 0 300 100" preserveAspectRatio="none"></svg>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <h3 class="font-semibold text-lg mb-2">Temperatur Graf</h3>
+                    <div class="chart-container">
+                        <svg id="temp-chart-svg" viewBox="0 0 300 100" preserveAspectRatio="none"></svg>
+                    </div>
+                </div>
+                <div class="card p-4">
+                    <h3 class="font-semibold text-lg mb-2">Logbog</h3>
+                    <textarea id="log-input" class="w-full p-2 border rounded mb-2 text-sm bg-gray-50" rows="2" placeholder="Tilføj note... (f.eks. 'Vandet planter')"></textarea>
+                    <button id="add-log-button" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Tilføj til Log</button>
+                    <div id="log-entries" class="mt-3 text-sm max-h-40 overflow-y-auto">
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-feed" class="tab-content">
+            <header class="app-header"><h1>Live Kamera Feed</h1></header>
+            <div class="p-4">
+                <div class="bg-black aspect-video rounded-lg shadow-md flex items-center justify-center relative">
+                    <div class="text-center">
+                        <i class="fas fa-video text-gray-500 text-5xl"></i>
+                        <p class="text-gray-400 mt-3">Kamerafeed er ikke tilgængeligt.</p>
+                    </div>
+                    <div class="absolute bottom-2 left-2 text-xs text-white bg-black bg-opacity-50 px-2 py-1 rounded">Sidste billede: <span id="last-image-timestamp">Aldrig</span></div>
+                </div>
+                <div class="mt-4 flex justify-around">
+                    <button class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600"><i class="fas fa-camera mr-1"></i> Tag Billede</button>
+                    <button class="bg-gray-700 text-white px-4 py-2 rounded text-sm hover:bg-gray-600"><i class="fas fa-video-slash mr-1"></i> Start Optagelse</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-responsibility" class="tab-content">
+            <header class="app-header"><h1>Ansvarsfordeling</h1></header>
+            <div class="p-4">
+                <div class="card p-3 mb-4">
+                     <p class="text-sm font-medium">Er du hjemme i næste uge?</p>
+                </div>
+                <div class="card p-4 mb-4">
+                    <h3 class="font-semibold text-lg mb-2">Kalender Oversigt</h3>
+                    <img src="https://placehold.co/600x150/D1FAE5/059669?text=Ansvarskalender" alt="Ansvarskalender" class="w-full rounded border">
+                </div>
+                <div class="space-y-4">
+                    <div class="card p-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="font-semibold text-base">Teknikansvarlig</h3>
+                                <p class="text-sm">Klaus</p>
+                                <p class="text-xs text-gray-500">tlf: 53 53 53 53</p>
+                            </div>
+                            <input type="checkbox" id="toggle-klaus" class="toggle-checkbox hidden" data-person="klaus"><label for="toggle-klaus" class="toggle-label"></label>
+                        </div>
+                        <div id="date-input-klaus" class="mt-3 date-input-container">
+                            <label for="date-klaus" class="block text-xs font-medium mb-1">Hjemme igen den:</label>
+                            <input type="text" id="date-klaus" readonly class="mt-1 block w-full p-2 border rounded sm:text-sm bg-gray-50 cursor-default" placeholder="Vælg dato">
+                        </div>
+                        <button class="mt-2 text-xs bg-teal-500 text-white px-2 py-1 rounded hover:bg-teal-600 w-full sim-reminder-button">Send Påmindelse</button>
+                    </div>
+                     <div class="card p-4">
+                        <div class="flex justify-between items-center">
+                            <div><h3 class="font-semibold text-base">Grønt ansvarlig</h3><p class="text-sm">Conny</p><p class="text-xs text-gray-500">tlf: 53 53 53 53</p></div>
+                            <input type="checkbox" id="toggle-conny" class="toggle-checkbox hidden" data-person="conny"><label for="toggle-conny" class="toggle-label"></label>
+                        </div>
+                        <div id="date-input-conny" class="mt-3 date-input-container">
+                            <label for="date-conny" class="block text-xs font-medium mb-1">Hjemme igen den:</label>
+                            <input type="text" id="date-conny" readonly class="mt-1 block w-full p-2 border rounded sm:text-sm bg-gray-50 cursor-default" placeholder="Vælg dato">
+                        </div>
+                        <button class="mt-2 text-xs bg-teal-500 text-white px-2 py-1 rounded hover:bg-teal-600 w-full sim-reminder-button">Send Påmindelse</button>
+                    </div>
+                    <div class="card p-4">
+                        <div class="flex justify-between items-center">
+                            <div><h3 class="font-semibold text-base">Ordens ansvarlig</h3><p class="text-sm">Jarl</p><p class="text-xs text-gray-500">tlf: 71 71 71 71</p></div>
+                            <input type="checkbox" id="toggle-jarl" class="toggle-checkbox hidden" data-person="jarl"><label for="toggle-jarl" class="toggle-label"></label>
+                        </div>
+                        <div id="date-input-jarl" class="mt-3 date-input-container">
+                            <label for="date-jarl" class="block text-xs font-medium mb-1">Hjemme igen den:</label>
+                            <input type="text" id="date-jarl" readonly class="mt-1 block w-full p-2 border rounded sm:text-sm bg-gray-50 cursor-default" placeholder="Vælg dato">
+                        </div>
+                        <button class="mt-2 text-xs bg-teal-500 text-white px-2 py-1 rounded hover:bg-teal-600 w-full sim-reminder-button">Send Påmindelse</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-kids" class="tab-content">
+            <header class="app-header"><h1>For Børn</h1></header>
+            <div class="child-lock-bar sticky top-[calc(env(safe-area-inset-top)+49px)] z-[998]"> <span>Børnelås</span>
+                <input type="checkbox" id="toggle-child-lock" class="toggle-checkbox hidden"><label for="toggle-child-lock" class="toggle-label"></label>
+            </div>
+            <div class="p-4">
+                <div class="kids-card">
+                    <h2>Hej Smarte Hoved! <i class="fas fa-seedling text-green-500"></i></h2>
+                    <p>Velkommen til planternes seje verden! Tryk på "Vidste du at..." knapperne for at lære mere!</p>
+                </div>
+                <div class="kids-card">
+                    <h3><i class="fas fa-strawberry text-red-500"></i> Mød Jordbærret!</h3>
+                    <img src="https://placehold.co/600x400/FFC0CB/FF69B4?text=Billede+af+Jordbær" alt="Billede af et glad jordbær">
+                    <p>Jordbær er super søde og røde! De elsker solskin. <button class="text-blue-500 underline text-sm did-you-know" data-info="Et jordbær har sine frø udenpå! Tæl dem næste gang du spiser et!">Vidste du at?</button></p>
+                </div>
+                <div class="kids-card">
+                    <h3><i class="fas fa-pepper-hot text-orange-500"></i> Se Tomaten!</h3>
+                    <img src="https://placehold.co/600x400/FF6347/FFFFFF?text=Billede+af+Tomat" alt="Billede af en glad tomat">
+                    <p>Tomater kan være røde, gule eller grønne! <button class="text-blue-500 underline text-sm did-you-know" data-info="Tomater er faktisk en frugt, selvom vi tit bruger dem som en grøntsag i madlavning!">Vidste du at?</button></p>
+                </div>
+                <div class="kids-card">
+                    <h3><i class="fas fa-carrot text-orange-400"></i> Gulerødder i Vand?</h3>
+                     <img src="https://placehold.co/600x400/FED7AA/EA580C?text=Gulerødder+i+Hydroponi" alt="Billede af gulerødder i hydroponi">
+                    <p>Ja, selv gulerødder kan gro uden jord! De har brug for dybe beholdere. <button class="text-blue-500 underline text-sm did-you-know" data-info="Gulerødder får deres orange farve fra noget der hedder beta-caroten, som er godt for dine øjne!">Vidste du at?</button></p>
+                </div>
+                <div class="kids-card">
+                    <h3><i class="fas fa-water text-blue-400"></i> Hvad er Hydroponi?</h3>
+                    <img src="https://placehold.co/600x300/ADD8E6/00008B?text=Planter+uden+jord" alt="Illustration af planter der vokser i vand">
+                    <p>Planter UDEN jord! De får mad (næring) fra vandet. En super-smoothie for planter!</p>
+                </div>
+                <div class="kids-card">
+                    <h3><i class="fas fa-leaf text-green-600"></i> Hvorfor er det Bæredygtigt?</h3>
+                    <p>Bæredygtigt = passe på Jorden. Hydroponi er smart fordi: <br> <i class="fas fa-tint"></i> Mindre vand <br> <i class="fas fa-tractor"></i> Mindre plads <br> <i class="fas fa-bug-slash"></i> Mindre sprøjtemiddel.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-community" class="tab-content">
+            <header class="app-header"><h1>Opslagstavle</h1></header>
+            <div class="p-4">
+                <div class="card p-4 mb-4">
+                    <h3 class="font-semibold text-lg mb-2">Nyt Opslag</h3>
+                    <textarea id="post-input" class="w-full p-2 border rounded mb-2 text-sm bg-gray-50" rows="3" placeholder="Skriv dit opslag her..."></textarea>
+                    <button id="add-post-button" class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600">Send Opslag</button>
+                </div>
+                <div class="card p-4">
+                    <h3 class="font-semibold text-lg mb-2">Seneste Opslag</h3>
+                    <div id="posts-container" class="max-h-96 overflow-y-auto">
+                        <p class="text-sm text-gray-500">Ingen opslag endnu.</p>
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-help" class="tab-content">
+            <header class="app-header"><h1>Hjælp & Info</h1></header>
+            <div class="p-4 space-y-4">
+                <div class="card p-4">
+                    <h3 class="font-semibold text-lg mb-2">Ofte Stillede Spørgsmål (FAQ)</h3>
+                    <div class="text-sm space-y-3">
+                        <div class="faq-item"><strong>Hvad er pH, og hvorfor er det vigtigt?</strong><p>pH er et mål for, hvor surt eller basisk vandet er. De fleste planter i hydroponi trives bedst ved en pH-værdi mellem 5.5 og 6.5. Hvis pH er for høj eller for lav, kan planterne ikke optage næringsstofferne ordentligt, selvom de er i vandet.</p></div>
+                        <div class="faq-item"><strong>Hvad er EC / PPM, og skal jeg bekymre mig om det?</strong><p>EC (Electrical Conductivity) eller PPM (Parts Per Million) måler mængden af opløste næringsstoffer i vandet. Systemet her justerer dette automatisk, så du behøver normalt ikke bekymre dig. Værdierne i appen er primært til information.</p></div>
+                        <div class="faq-item"><strong>Hvorfor er temperaturen vigtig for vandet og luften?</strong><p>Vandtemperaturen påvirker planternes rodvækst og iltoptagelse. Lufttemperaturen påvirker den generelle vækst. Systemet forsøger at holde begge inden for optimale rammer.</p></div>
+                        <div class="faq-item"><strong>Hvor ofte skal jeg tjekke systemet?</strong><p>Selvom systemet er selvregulerende, er det en god idé at kigge til planterne dagligt for at sikre, at alt ser sundt ud. Tjek vandstanden i reservoiret ugentligt, eller følg anvisningerne fra systemet hvis det giver besked.</p></div>
+                        <div class="faq-item"><strong>Hvad gør jeg, hvis en værdi er rød i appen?</strong><p>Først, giv systemet lidt tid til at regulere sig selv. Hvis en værdi forbliver kritisk (rød) i længere tid (f.eks. flere timer), kan du tjekke fanen "Hjælp" for kontaktinformation eller se om der er opslag på "Opslagstavlen" fra andre brugere.</p></div>
+                        <div class="faq-item"><strong>Hvordan virker ansvarsfanen?</strong><p>Her kan I se, hvem der har ansvaret for drivhuset, og melde jer fraværende, så andre kan tage over. Det sikrer, at der altid er nogen, der har et ekstra øje på systemet.</p></div>
+                         <div class="faq-item"><strong>Kan jeg dyrke alt i systemet?</strong><p>Mange forskellige grøntsager, krydderurter og bær trives i hydroponi. Store rodgrøntsager som kartofler er typisk mindre egnede. Spørg gerne på opslagstavlen for tips til specifikke planter.</p></div>
+                         <div class="faq-item"><strong>Hvad betyder "selvregulerende"?</strong><p>Det betyder, at systemet selv forsøger at justere f.eks. pH og mængden af næring i vandet ved hjælp af sensorer og pumper. Du skal primært sørge for at der er vand og gødning i de respektive beholdere.</p></div>
+                    </div>
+                </div>
+                 <div class="card p-4">
+                    <h3 class="font-semibold text-lg mb-2">Kontakt & Support</h3>
+                    <p class="text-sm mb-1">Oplever du problemer med systemet, som ikke kan løses via FAQ eller opslagstavlen?</p>
+                    <p class="text-sm mb-3">Kontakt venligst den teknisk ansvarlige (se "Ansvar" fanen) eller projektgruppen på [indsæt kontaktinfo her, f.eks. en mail eller telefonnummer].</p>
+                    <button id="feedback-button" class="w-full bg-purple-500 text-white py-2 rounded hover:bg-purple-600">Giv App Feedback</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" data-tab="tab-home"><i class="fas fa-home"></i><span class="nav-item-label">Hjem</span></div>
+        <div class="nav-item" data-tab="tab-data"><i class="fas fa-chart-bar"></i><span class="nav-item-label">Data</span></div>
+        <div class="nav-item" data-tab="tab-feed"><i class="fas fa-video"></i><span class="nav-item-label">Feed</span></div>
+        <div class="nav-item" data-tab="tab-responsibility"><i class="fas fa-users"></i><span class="nav-item-label">Ansvar</span></div>
+        <div class="nav-item" data-tab="tab-kids"><i class="fas fa-child"></i><span class="nav-item-label">Børn</span></div>
+        <div class="nav-item" data-tab="tab-community"><i class="fas fa-bullhorn"></i><span class="nav-item-label">Opslag</span></div>
+        <div class="nav-item" data-tab="tab-help"><i class="fas fa-question-circle"></i><span class="nav-item-label">Hjælp</span></div>
+    </nav>
+
+    <div id="datePickerModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-lg font-semibold mb-2">Vælg dato</h3>
+            <p class="mb-4 text-sm">Hvornår er du hjemme igen?</p>
+            <input type="date" id="modal-date-input" class="p-2.5 border rounded w-full mb-5 text-center">
+            <div class="flex flex-col space-y-2">
+                <button id="modal-ok-button" class="w-full px-4 py-2.5 bg-blue-500 text-white rounded hover:bg-blue-600">OK</button>
+                <button id="modal-cancel-button" class="w-full px-4 py-2.5 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">Annuller</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="firstTimeGuideModal" class="modal">
+        <div class="modal-content guide-modal-content">
+            <div id="guide-slide-container">
+                </div>
+            <div class="guide-dots my-3">
+                </div>
+            <div class="px-4 pb-3">
+                <button id="prev-guide-button" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 mr-2">Forrige</button>
+                <button id="next-guide-button" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Næste</button>
+                <button id="finish-guide-button" class="hidden px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Forstået!</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="didYouKnowModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-lg font-semibold mb-2 text-purple-600"><i class="fas fa-lightbulb mr-2"></i>Vidste du at?</h3>
+            <p id="didYouKnowText" class="text-sm mb-4"></p>
+            <button id="closeDidYouKnowModal" class="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">Fedt!</button>
+        </div>
+    </div>
+
+    <div id="feedbackModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-lg font-semibold mb-2">Giv Feedback til Appen</h3>
+            <p class="text-sm mb-3">Dine tanker hjælper os med at gøre appen bedre!</p>
+            <textarea id="feedback-text-area" class="w-full p-2 border rounded mb-3 text-sm" rows="4" placeholder="Skriv din feedback her..."></textarea>
+            <button id="send-feedback-button" class="w-full bg-purple-500 text-white py-2 rounded hover:bg-purple-600 mb-2">Send</button>
+            <button id="cancel-feedback-button" class="w-full bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400">Annuller</button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const criticalAlertBanner = document.getElementById('critical-alert-banner');
+            const criticalAlertMessage = document.getElementById('critical-alert-message');
+
+            function showCriticalAlert(message) {
+                criticalAlertMessage.textContent = message;
+                criticalAlertBanner.style.display = 'block';
+            }
+            function hideCriticalAlert() {
+                criticalAlertBanner.style.display = 'none';
+            }
+
+            const phValueElement = document.getElementById('ph-value');
+            const humidityValueElement = document.getElementById('humidity-value');
+            const temperatureValueElement = document.getElementById('temperature-value');
+            const lightLevelValueElement = document.getElementById('light-level-value');
+            const statusMessageElement = document.getElementById('status-message');
+
+            const dailyTips = [
+                "Husk at tjekke vandstanden i dag!",
+                "Planterne elsker lidt ekstra opmærksomhed.",
+                "Overvej at give planterne en lille 'snack' (gødning) hvis det er tid.",
+                "Godt gået! Drivhuset ser sundt ud.",
+                "En ren tank giver glade planter."
+            ];
+
+            const dataPhValueElement = document.getElementById('data-ph-value');
+            const dataPhStatusElement = document.getElementById('data-ph-status');
+            const dataHumidityValueElement = document.getElementById('data-humidity-value');
+            const dataHumidityStatusElement = document.getElementById('data-humidity-status');
+            const dataTemperatureValueElement = document.getElementById('data-temperature-value');
+            const dataTemperatureStatusElement = document.getElementById('data-temperature-status');
+            const dataLightValueElement = document.getElementById('data-light-value');
+            const dataLightStatusElement = document.getElementById('data-light-status');
+            const logInputElement = document.getElementById('log-input');
+            const addLogButton = document.getElementById('add-log-button');
+            const logEntriesContainer = document.getElementById('log-entries');
+
+            if(addLogButton) { // Check if element exists before adding listener
+                addLogButton.addEventListener('click', () => {
+                    const note = logInputElement.value.trim();
+                    if (note) {
+                        const entryDiv = document.createElement('div');
+                        entryDiv.classList.add('log-entry');
+                        const time = new Date().toLocaleTimeString('da-DK', { hour: '2-digit', minute: '2-digit' });
+                        entryDiv.innerHTML = `<p class="font-medium">${note}</p><p class="log-meta">Tilføjet: ${time}</p>`;
+                        if (logEntriesContainer.firstChild && logEntriesContainer.firstChild.textContent === "Ingen log-notater endnu.") {
+                            logEntriesContainer.innerHTML = '';
+                        }
+                        logEntriesContainer.prepend(entryDiv);
+                        logInputElement.value = '';
+                    }
+                });
+            }
+
+
+            const lastImageTimestampElement = document.getElementById('last-image-timestamp');
+            if(lastImageTimestampElement){
+                 setTimeout(() => {
+                    lastImageTimestampElement.textContent = new Date().toLocaleTimeString('da-DK');
+                }, 2000);
+            }
+
+
+            const responsibilityToggles = document.querySelectorAll('#tab-responsibility .toggle-checkbox');
+            const simReminderButtons = document.querySelectorAll('.sim-reminder-button');
+            simReminderButtons.forEach(btn => {
+                btn.addEventListener('click', () => alert('Påmindelse er sendt!'));
+            });
+
+            const childLockToggle = document.getElementById('toggle-child-lock');
+            const didYouKnowButtons = document.querySelectorAll('.did-you-know');
+            const didYouKnowModal = document.getElementById('didYouKnowModal');
+            const didYouKnowTextElement = document.getElementById('didYouKnowText');
+            const closeDidYouKnowModalButton = document.getElementById('closeDidYouKnowModal');
+
+            if (childLockToggle) {
+                childLockToggle.addEventListener('change', function() {
+                    console.log("Børnelås status:", this.checked);
+                });
+            }
+            didYouKnowButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    didYouKnowTextElement.textContent = this.dataset.info;
+                    didYouKnowModal.style.display = 'flex';
+                });
+            });
+            if(closeDidYouKnowModalButton) {
+                closeDidYouKnowModalButton.addEventListener('click', () => didYouKnowModal.style.display = 'none');
+            }
+
+
+            const postInputElement = document.getElementById('post-input');
+            const addPostButton = document.getElementById('add-post-button');
+            const postsContainer = document.getElementById('posts-container');
+
+            if(addPostButton) {
+                addPostButton.addEventListener('click', () => {
+                    const postText = postInputElement.value.trim();
+                    if (postText) {
+                        const postDiv = document.createElement('div');
+                        postDiv.classList.add('post-item', 'p-3', 'border-b');
+                        const time = new Date().toLocaleString('da-DK', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                        postDiv.innerHTML = `<p class="text-sm">${postText}</p><p class="post-meta mt-1">Bruger - ${time}</p>`;
+                        if (postsContainer.firstChild && postsContainer.firstChild.textContent.includes("Ingen opslag endnu.")) {
+                            postsContainer.innerHTML = '';
+                        }
+                        postsContainer.prepend(postDiv);
+                        postInputElement.value = '';
+                    }
+                });
+            }
+
+
+            const feedbackButton = document.getElementById('feedback-button');
+            const feedbackModal = document.getElementById('feedbackModal');
+            const sendFeedbackButton = document.getElementById('send-feedback-button');
+            const cancelFeedbackButton = document.getElementById('cancel-feedback-button');
+            const feedbackTextArea = document.getElementById('feedback-text-area');
+
+            if(feedbackButton) {
+                feedbackButton.addEventListener('click', () => feedbackModal.style.display = 'flex');
+            }
+            if(cancelFeedbackButton) {
+                 cancelFeedbackButton.addEventListener('click', () => feedbackModal.style.display = 'none');
+            }
+            if(sendFeedbackButton) {
+                sendFeedbackButton.addEventListener('click', () => {
+                    if (feedbackTextArea.value.trim()) {
+                        alert('Tak for din feedback!');
+                        feedbackTextArea.value = '';
+                        feedbackModal.style.display = 'none';
+                    } else {
+                        alert('Skriv venligst din feedback før afsendelse.');
+                    }
+                });
+            }
+
+
+            const navItems = document.querySelectorAll('.nav-item');
+            const tabContents = document.querySelectorAll('.tab-content');
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    item.classList.add('active');
+                    const tabId = item.getAttribute('data-tab');
+                    const activeTabContent = document.getElementById(tabId);
+                    if (activeTabContent) {
+                        activeTabContent.classList.add('active');
+                        activeTabContent.scrollTo(0, 0);
+                    }
+                    window.scrollTo(0,0);
+                });
+            });
+
+            const MAX_DATA_POINTS = 30;
+            let phHistory = Array(MAX_DATA_POINTS).fill(6.0); // Initialize with stable values
+            let tempHistory = Array(MAX_DATA_POINTS).fill(22.0);
+            let currentPh = 6.0;
+            let currentTemp = 22.0;
+            let currentHumidity = 55;
+            let currentLight = 15000;
+
+
+            function updateRealisticValue(currentValue, minChange, maxChange, minBound, maxBound, decimals = 1) {
+                let change = (Math.random() * (maxChange - minChange) + minChange) * (Math.random() < 0.5 ? -1 : 1);
+                let newValue = parseFloat((currentValue + change).toFixed(decimals));
+                if (newValue < minBound) newValue = parseFloat((minBound + (Math.random() * maxChange * 0.5)).toFixed(decimals)); // Softer bounce from bounds
+                if (newValue > maxBound) newValue = parseFloat((maxBound - (Math.random() * maxChange * 0.5)).toFixed(decimals));
+                return newValue;
+            }
+
+            function drawChart(svgElementId, dataHistory, color, yMin, yMax, unit = '') {
+                const svg = document.getElementById(svgElementId);
+                if (!svg) return;
+                svg.innerHTML = '';
+
+                const width = 300;
+                const height = 100;
+                const padding = 25; // Increased padding for labels
+
+                const yAxisLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                yAxisLine.setAttribute("x1", padding); yAxisLine.setAttribute("y1", 5); // Start a bit from top
+                yAxisLine.setAttribute("x2", padding); yAxisLine.setAttribute("y2", height - padding + 5); // End a bit from bottom padding
+                yAxisLine.setAttribute("class", "axis-line");
+                svg.appendChild(yAxisLine);
+
+                const xAxisLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                xAxisLine.setAttribute("x1", padding); xAxisLine.setAttribute("y1", height - padding +5);
+                xAxisLine.setAttribute("x2", width -5); xAxisLine.setAttribute("y2", height - padding +5); // End a bit from right
+                xAxisLine.setAttribute("class", "axis-line");
+                svg.appendChild(xAxisLine);
+
+                const yValues = [yMin, (yMin + yMax) / 2, yMax];
+                yValues.forEach(val => {
+                    const yPos = (height - padding + 5) - ((val - yMin) / (yMax - yMin)) * (height - padding);
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text.setAttribute("x", padding - 5);
+                    text.setAttribute("y", yPos);
+                    text.setAttribute("text-anchor", "end");
+                    text.setAttribute("alignment-baseline", "middle");
+                    text.setAttribute("class", "axis-text");
+                    text.textContent = val.toFixed(unit === '°C' || unit === 'pH' ? 1 : 0) + unit;
+                    svg.appendChild(text);
+                });
+
+                if (dataHistory.length < 2) return;
+
+                const graphWidth = width - padding - 5; // Usable graph width
+                const graphHeight = height - padding; // Usable graph height
+                const xStep = graphWidth / (MAX_DATA_POINTS - 1);
+                let points = "";
+                for (let i = 0; i < dataHistory.length; i++) {
+                    const x = padding + i * xStep;
+                    const yRange = yMax - yMin;
+                    let yValueNormalized = (dataHistory[i] - yMin) / yRange;
+                    yValueNormalized = Math.max(0, Math.min(1, yValueNormalized));
+                    const y = (height - padding + 5) - (yValueNormalized * graphHeight);
+                    points += `${x.toFixed(2)},${y.toFixed(2)} `;
+                }
+
+                const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+                polyline.setAttribute("points", points.trim());
+                polyline.setAttribute("class", `chart-line ${svgElementId.includes('ph') ? 'ph-line' : 'temp-line'}`);
+                polyline.style.stroke = color;
+                svg.appendChild(polyline);
+            }
+
+
+            function updateSensorData() {
+                hideCriticalAlert();
+                let criticalFound = false;
+                let dailyStatus = dailyTips[Math.floor(Math.random() * dailyTips.length)];
+
+                currentPh = updateRealisticValue(currentPh, 0.02, 0.08, 5.0, 7.5, 1);
+                currentHumidity = updateRealisticValue(currentHumidity, 0.2, 0.8, 40, 80, 0);
+                currentTemp = updateRealisticValue(currentTemp, 0.02, 0.1, 15.0, 30.0, 1);
+                currentLight = updateRealisticValue(currentLight, 20, 100, 5000, 25000, 0);
+
+                phHistory.push(currentPh);
+                if (phHistory.length > MAX_DATA_POINTS) phHistory.shift();
+                tempHistory.push(currentTemp);
+                if (tempHistory.length > MAX_DATA_POINTS) tempHistory.shift();
+
+                drawChart('ph-chart-svg', phHistory, '#3b82f6', 5.0, 7.5, 'pH');
+                drawChart('temp-chart-svg', tempHistory, '#f97316', 15, 30, '°C');
+
+                if (phValueElement) phValueElement.textContent = currentPh.toFixed(1);
+                if (dataPhValueElement) dataPhValueElement.textContent = currentPh.toFixed(1);
+                if (dataPhStatusElement) updateStatus(dataPhStatusElement, currentPh, 5.5, 6.5, "pH er optimal.", "pH er for lav!", "pH er for høj!", "ph", m => { showCriticalAlert(m); criticalFound = true; dailyStatus = m; });
+
+                if (humidityValueElement) humidityValueElement.textContent = currentHumidity;
+                if (dataHumidityValueElement) dataHumidityValueElement.textContent = `${currentHumidity} %`;
+                if (dataHumidityStatusElement) updateStatus(dataHumidityStatusElement, currentHumidity, 50, 70, "Luftfugtighed er optimal.", "Luftfugtighed er for lav.", "Luftfugtighed er for høj.", "humidity", m => { if(!criticalFound) {showCriticalAlert(m); criticalFound = true; dailyStatus = m;} });
+
+                if (temperatureValueElement) temperatureValueElement.textContent = currentTemp.toFixed(1);
+                if (dataTemperatureValueElement) dataTemperatureValueElement.textContent = `${currentTemp.toFixed(1)} °C`;
+                if (dataTemperatureStatusElement) updateStatus(dataTemperatureStatusElement, currentTemp, 18, 24, "Temperatur er optimal.", "Temperatur er for lav.", "Temperatur er for høj.", "temperature", m => { if(!criticalFound) {showCriticalAlert(m); criticalFound = true; dailyStatus = m;} });
+
+                if (lightLevelValueElement) lightLevelValueElement.textContent = currentLight;
+                if (dataLightValueElement) dataLightValueElement.textContent = `${currentLight} lux`;
+                if (dataLightStatusElement) updateStatus(dataLightStatusElement, currentLight, 10000, 20000, "Lysniveau er optimalt.", "Lysniveau er for lavt.", "Lysniveau er for højt.", "light");
+
+                if (statusMessageElement) statusMessageElement.innerHTML = criticalFound ? `${dailyStatus} <i class="fas fa-triangle-exclamation text-red-500 ml-1"></i>` : `${dailyStatus} <i class="fas fa-check-circle text-green-500 ml-1"></i>`;
+            }
+
+            function updateStatus(element, value, min, max, okMsg, lowMsg, highMsg, type, alertCallback) {
+                let message = '';
+                let className = 'text-xs mt-1 ';
+                if (value >= min && value <= max) {
+                    message = okMsg;
+                    className += 'text-green-600';
+                } else if (value < min) {
+                    message = lowMsg;
+                    className += 'text-red-600';
+                    if (alertCallback) alertCallback(`OBS: ${type === 'ph' ? 'pH' : type.charAt(0).toUpperCase() + type.slice(1)} er kritisk lav! (${value.toFixed(1)})`);
+                } else {
+                    message = highMsg;
+                    className += 'text-red-600';
+                    if (alertCallback) alertCallback(`OBS: ${type === 'ph' ? 'pH' : type.charAt(0).toUpperCase() + type.slice(1)} er kritisk høj! (${value.toFixed(1)})`);
+                }
+                element.textContent = message;
+                element.className = className;
+            }
+
+            const datePickerModal = document.getElementById('datePickerModal');
+            const modalDateInput = document.getElementById('modal-date-input');
+            const modalCancelButton = document.getElementById('modal-cancel-button');
+            const modalOkButton = document.getElementById('modal-ok-button');
+            let currentPersonForDatePicker = null;
+            let currentTargetDateField = null;
+
+            responsibilityToggles.forEach(toggle => {
+                toggle.addEventListener('change', function() {
+                    const person = this.dataset.person;
+                    const dateInputContainer = document.getElementById(`date-input-${person}`);
+                    currentTargetDateField = document.getElementById(`date-${person}`);
+                    if (this.checked) {
+                        dateInputContainer.classList.add('active');
+                        currentPersonForDatePicker = person;
+                        openDatePickerModal();
+                    } else {
+                        dateInputContainer.classList.remove('active');
+                        if(currentTargetDateField) {
+                            currentTargetDateField.value = '';
+                            currentTargetDateField.placeholder = "Vælg dato";
+                        }
+                    }
+                });
+            });
+
+            function openDatePickerModal() {
+                if (!currentTargetDateField) return;
+                const today = new Date();
+                const minDate = today.toISOString().split('T')[0];
+                modalDateInput.min = minDate;
+                if (currentTargetDateField.value && currentTargetDateField.value.includes('/')) {
+                    const parts = currentTargetDateField.value.split('/');
+                    if (parts.length === 3) {
+                        const day = parts[0].padStart(2, '0'); const month = parts[1].padStart(2, '0'); const year = parts[2];
+                        const formattedDateForInput = `${year}-${month}-${day}`;
+                        if (new Date(formattedDateForInput) >= new Date(minDate)) modalDateInput.value = formattedDateForInput;
+                        else modalDateInput.value = minDate;
+                    } else modalDateInput.value = minDate;
+                } else modalDateInput.value = minDate;
+                datePickerModal.style.display = "flex";
+                setTimeout(() => modalDateInput.focus(), 50);
+            }
+            if(modalCancelButton) {
+                modalCancelButton.addEventListener('click', () => {
+                    datePickerModal.style.display = "none";
+                    if (currentPersonForDatePicker) {
+                        const toggle = document.getElementById(`toggle-${currentPersonForDatePicker}`);
+                        if (toggle && (!currentTargetDateField || !currentTargetDateField.value) ) {
+                            toggle.checked = false;
+                            const dateInputContainer = document.getElementById(`date-input-${currentPersonForDatePicker}`);
+                            if (dateInputContainer) dateInputContainer.classList.remove('active');
+                        }
+                    }
+                    resetModalState();
+                });
+            }
+            if(modalOkButton) {
+                modalOkButton.addEventListener('click', () => {
+                    if (currentTargetDateField && modalDateInput.value) {
+                        const parts = modalDateInput.value.split('-');
+                        currentTargetDateField.value = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    } else if (currentTargetDateField) {
+                         const toggle = document.getElementById(`toggle-${currentPersonForDatePicker}`);
+                        if (toggle) {
+                            toggle.checked = false;
+                             const dateInputContainer = document.getElementById(`date-input-${currentPersonForDatePicker}`);
+                            if (dateInputContainer) dateInputContainer.classList.remove('active');
+                        }
+                    }
+                    datePickerModal.style.display = "none";
+                    resetModalState();
+                });
+            }
+
+            function resetModalState() { currentPersonForDatePicker = null; currentTargetDateField = null; }
+            if(datePickerModal) {
+                datePickerModal.addEventListener('click', function(event) { if (event.target === datePickerModal) modalCancelButton.click(); });
+            }
+
+
+            const firstTimeGuideModal = document.getElementById('firstTimeGuideModal');
+            const guideSlideContainer = document.getElementById('guide-slide-container');
+            const guideDotsContainer = firstTimeGuideModal.querySelector('.guide-dots');
+            const prevGuideButton = document.getElementById('prev-guide-button');
+            const nextGuideButton = document.getElementById('next-guide-button');
+            const finishGuideButton = document.getElementById('finish-guide-button');
+            const guideSlidesContent = [
+                { img: 'https://placehold.co/300x150/A7F3D0/047857?text=Velkommen!', title: 'Velkommen til Drivhus Appen!', text: 'Denne app hjælper dig med at holde øje med dit hydroponiske drivhus.' },
+                { img: 'https://placehold.co/300x150/BAE6FD/075985?text=Faner', title: 'Nem Navigation', text: 'Brug fanerne i bunden til at skifte mellem Hjem, Data, Feed og mere.' },
+                { img: 'https://placehold.co/300x150/FDE68A/78350F?text=Sensorer', title: 'Hold Øje Med Værdier', text: 'På "Hjem" og "Data" kan du se live sensorværdier.' },
+                { img: 'https://placehold.co/300x150/FECACA/991B1B?text=Ansvar', title: 'Del Ansvaret', text: 'Koordiner med andre på "Ansvar" fanen. God fornøjelse!' }
+            ];
+            let currentGuideSlide = 0;
+
+            function setupGuide() {
+                if (!guideSlideContainer || !guideDotsContainer) return; // Sikkerhedstjek
+                guideSlideContainer.innerHTML = '';
+                guideDotsContainer.innerHTML = '';
+                guideSlidesContent.forEach((slideData, index) => {
+                    const slideDiv = document.createElement('div');
+                    slideDiv.classList.add('guide-slide');
+                    if (index !== 0) slideDiv.classList.add('hidden');
+                    slideDiv.innerHTML = `<img src="${slideData.img}" alt="${slideData.title}"><h3 class="mt-2">${slideData.title}</h3><p>${slideData.text}</p>`;
+                    guideSlideContainer.appendChild(slideDiv);
+                    const dotSpan = document.createElement('span');
+                    dotSpan.classList.add('guide-dot');
+                    if (index === 0) dotSpan.classList.add('active');
+                    dotSpan.dataset.index = index;
+                    guideDotsContainer.appendChild(dotSpan);
+                });
+                updateGuideButtons();
+            }
+
+            function updateGuideButtons() {
+                 if (!guideSlideContainer || !prevGuideButton || !nextGuideButton || !finishGuideButton) return; // Sikkerhedstjek
+                const slides = guideSlideContainer.querySelectorAll('.guide-slide');
+                slides.forEach((s, i) => s.classList.toggle('hidden', i !== currentGuideSlide));
+                const dots = guideDotsContainer.querySelectorAll('.guide-dot');
+                dots.forEach((d, i) => d.classList.toggle('active', i === currentGuideSlide));
+                prevGuideButton.classList.toggle('hidden', currentGuideSlide === 0);
+                nextGuideButton.classList.toggle('hidden', currentGuideSlide === guideSlidesContent.length - 1);
+                finishGuideButton.classList.toggle('hidden', currentGuideSlide !== guideSlidesContent.length - 1);
+            }
+
+            if(nextGuideButton) {
+                nextGuideButton.addEventListener('click', () => {
+                    if (currentGuideSlide < guideSlidesContent.length - 1) { currentGuideSlide++; updateGuideButtons(); }
+                });
+            }
+            if(prevGuideButton) {
+                prevGuideButton.addEventListener('click', () => {
+                    if (currentGuideSlide > 0) { currentGuideSlide--; updateGuideButtons(); }
+                });
+            }
+            if(finishGuideButton) {
+                finishGuideButton.addEventListener('click', () => {
+                    firstTimeGuideModal.style.display = 'none';
+                    localStorage.setItem('hydroAppGuideShownV2', 'true');
+                });
+            }
+
+
+            if (!localStorage.getItem('hydroAppGuideShownV2') && firstTimeGuideModal) {
+                setupGuide();
+                firstTimeGuideModal.style.display = 'flex';
+            }
+
+            updateSensorData();
+            setInterval(updateSensorData, 5000);
+
+            if (navItems.length > 0 && tabContents.length > 0) {
+                navItems[0].classList.add('active');
+                if (document.getElementById(navItems[0].getAttribute('data-tab'))) {
+                    document.getElementById(navItems[0].getAttribute('data-tab')).classList.add('active');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
